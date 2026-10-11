@@ -1,4 +1,4 @@
-# ticket-base-go
+# base-go
 
 Boilerplate for Go services: **Connect + Vanguard** (one port serving Connect, gRPC, gRPC-Web and
 REST from the proto's `google.api.http` annotations), **uber fx**, **pgx** with a unit of work,
