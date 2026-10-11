@@ -36,6 +36,13 @@ services:
       APP_NAME: base
       APP_DATABASE_URL: postgres://base:base@postgres:5432/base?sslmode=disable
       APP_REDIS_URL: redis://redis:6379/0
+      # Traces and app metrics: set to "true" to send them to ../Infra's agent (Jaeger, Prometheus,
+      # Grafana on :3000), reached through the host's loopback port. Logs need nothing: the agent
+      # collects every container's stdout.
+      OTEL_TRACES_ENABLED: "false"
+      OTEL_METRICS_ENABLED: "false"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://host.docker.internal:4317
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=local
     ports: ["127.0.0.1:8080:8080"]
 
 volumes:

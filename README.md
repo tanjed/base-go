@@ -33,7 +33,8 @@ Module: `github.com/tanjed/base-go`.
 | `internal/cache` | Redis client, `Cache` (JSON Get/Set/Delete with TTL), readiness probe |
 | `internal/events` | Kafka publisher (`APP_KAFKA_BROKERS`), log-only without brokers |
 | `internal/health`, `internal/handler/health` | Readiness probes (each dependency contributes one); `GET /live`, `GET /ready` |
-| `internal/config`, `internal/logging` | `APP_*` environment; JSON logger |
+| `internal/config`, `internal/logging` | `APP_*` environment; JSON logger on stdout (trace ids added; the agent collects it) |
+| `internal/telemetry` | Traces and app metrics: the global tracer and meter providers (no-ops unless `OTEL_TRACES_ENABLED` / `OTEL_METRICS_ENABLED`) |
 | `migrations/` | goose SQL, embedded |
 | `chart/`, `helmvars/` | Helm chart (Deployment, Service, Postgres); per-environment values |
 
@@ -47,6 +48,26 @@ Module: `github.com/tanjed/base-go`.
 | `APP_DATABASE_READ_URL` | Read replica for reads outside a unit of work (defaults to the primary; lag accepted) |
 | `APP_REDIS_URL` | Redis (required) |
 | `APP_KAFKA_BROKERS`, `APP_KAFKA_TOPIC` | Events (`<APP_NAME>.events`); no brokers: events are only logged |
+| `OTEL_TRACES_ENABLED`, `OTEL_METRICS_ENABLED` | `true` exports traces / app metrics over OTLP (default off). Logs need no setting |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | The agent (`localhost:4317` by default; compose: `http://infra-agent:4317`; chart: the node's) |
+| `OTEL_SERVICE_NAME`, `OTEL_RESOURCE_ATTRIBUTES`, `OTEL_TRACES_SAMPLER`, ... | Standard OpenTelemetry settings, read by the SDK (`service.name` defaults to `APP_NAME`) |
+
+## Observability
+
+Like Datadog: an agent per machine (or per node: an OpenTelemetry collector, `../Infra`) collects
+what it can see from outside, and the process adds only what it alone can see.
+
+| Signal | Collected by | In this service | Setting |
+|---|---|---|---|
+| Logs | the agent, from the container's stdout | JSON on stdout (`internal/logging`); a record logged with a context (`InfoContext`, `ErrorContext`, ...) inside a span carries `trace_id`/`span_id`, which link it to its trace | none |
+| Infra metrics (CPU, memory, network, disk) | the agent, from the container runtime and the host | nothing | none |
+| Traces | the process: a span per RPC (every protocol; it continues the caller's `traceparent`), with child spans per Postgres query, Redis command, Kafka produce | `internal/telemetry` | Traces and app metrics: the global tracer and meter providers (no-ops unless `OTEL_TRACES_ENABLED` / `OTEL_METRICS_ENABLED`) |
+| App metrics | the process: RPC durations, Postgres and Redis pools, Kafka client, Go runtime | `internal/telemetry` | Traces and app metrics: the global tracer and meter providers (no-ops unless `OTEL_TRACES_ENABLED` / `OTEL_METRICS_ENABLED`) |
+
+Traces and app metrics go over OTLP to `OTEL_EXPORTER_OTLP_ENDPOINT`: the node's agent (in the
+chart, `http://<node IP>:4317`). An unreachable agent never fails the boot. Locally, `../Infra`'s
+agent sends traces to Jaeger (http://localhost:16686), metrics to Prometheus (http://localhost:9090)
+and logs to Loki; Grafana (http://localhost:3000) shows all three and links a log line to its trace.
 
 ## Commands
 

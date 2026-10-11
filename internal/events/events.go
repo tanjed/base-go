@@ -54,7 +54,7 @@ func (k *Kafka) Publish(ctx context.Context, event, key string, data map[string]
 	defer cancel()
 	rec := &kgo.Record{Key: []byte(key), Value: encode(k.source, event, data), Headers: []kgo.RecordHeader{{Key: "event", Value: []byte(event)}}}
 	if err := k.client.ProduceSync(ctx, rec).FirstErr(); err != nil {
-		k.log.Error("event not published", "event", event, "key", key, "err", err)
+		k.log.ErrorContext(ctx, "event not published", "event", event, "key", key, "err", err)
 	}
 }
 

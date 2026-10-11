@@ -2,8 +2,10 @@ package cache
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/redis/go-redis/extra/redisotel/v9"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/fx"
 
@@ -23,12 +25,20 @@ var Module = fx.Module("cache",
 
 func New(c redis.UniversalClient, cfg config.Config) *Redis { return &Redis{C: c, Prefix: cfg.Name} }
 
+// newClient: every command is a span and the pool's stats are metrics (redisotel).
 func newClient(lc fx.Lifecycle, cfg config.Config) (redis.UniversalClient, error) {
 	opts, err := redis.ParseURL(cfg.RedisURL)
 	if err != nil {
 		return nil, fmt.Errorf("APP_REDIS_URL: %w", err)
 	}
 	c := redis.NewClient(opts)
+	if err := errors.Join(
+		redisotel.InstrumentTracing(c),
+		redisotel.InstrumentMetrics(c),
+	); err != nil {
+		_ = c.Close()
+		return nil, fmt.Errorf("redis telemetry: %w", err)
+	}
 	lc.Append(fx.StopHook(func(context.Context) error { return c.Close() }))
 	return c, nil
 }

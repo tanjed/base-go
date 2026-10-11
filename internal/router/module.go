@@ -12,7 +12,7 @@ import (
 // Module builds the listener's handler from every service in the vanguard_services group and runs
 // the listener. Include it last, so it opens after every other start hook.
 var Module = fx.Module("router",
-	fx.Provide(New),
+	fx.Provide(New, NewHandlerOptions),
 	fx.Invoke((*Router).Run),
 )
 

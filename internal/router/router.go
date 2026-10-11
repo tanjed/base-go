@@ -7,7 +7,6 @@
 package router
 
 import (
-	"log/slog"
 	"net/http"
 
 	"connectrpc.com/connect"
@@ -35,15 +34,14 @@ type Mounter[T any] func(T, ...connect.HandlerOption) (string, http.Handler)
 // the implementation T comes from the graph (provide it as T, the generated handler interface).
 // The service joins the vanguard_services group.
 func Serve[T any](mount Mounter[T]) fx.Option {
-	return fx.Provide(fx.Annotate(func(impl T, log *slog.Logger) Service {
-		return Mount(mount, impl, log)
+	return fx.Provide(fx.Annotate(func(impl T, opts HandlerOptions) Service {
+		return Mount(mount, impl, opts)
 	}, fx.ResultTags(ServicesGroup)))
 }
 
-// Mount builds a Service: mount over impl, with the shared handler options (JSON codec, the error
-// interceptor, panics logged as Internal).
-func Mount[T any](mount Mounter[T], impl T, log *slog.Logger) Service {
-	path, h := mount(impl, handlerOptions(log)...)
+// Mount builds a Service: mount over impl, with the shared handler options (NewHandlerOptions).
+func Mount[T any](mount Mounter[T], impl T, opts HandlerOptions) Service {
+	path, h := mount(impl, opts...)
 	return Service{Path: path, Handler: h}
 }
 

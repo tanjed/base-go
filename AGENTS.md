@@ -14,7 +14,7 @@ Boilerplate for Go services (module `github.com/tanjed/base-go`). See README.md.
 
 ## Stack
 
-uber **fx**: each package owns `var Module = fx.Module(...)` and its constructor `New` in `module.go`; `internal/ioc` only lists the modules (in start order, `router` last). Every implementation has a compile-time assertion (`var _ Iface = (*Impl)(nil)`); constructors take interfaces, declared by the consumer (`user.Users`) or the repository (`userrepo.Repo`), bound in the consumer's module with a private provider (`func(s *usersvc.Service) Users { return s }`). **Connect + Vanguard** on one port (h2c), **pgx**, **goose**, **go-redis**, **franz-go**.
+uber **fx**: each package owns `var Module = fx.Module(...)` and its constructor `New` in `module.go`; `internal/ioc` only lists the modules (in start order, `router` last). Every implementation has a compile-time assertion (`var _ Iface = (*Impl)(nil)`); constructors take interfaces, declared by the consumer (`user.Users`) or the repository (`userrepo.Repo`), bound in the consumer's module with a private provider (`func(s *usersvc.Service) Users { return s }`). **Connect + Vanguard** on one port (h2c), **pgx**, **goose**, **go-redis**, **franz-go**, **OpenTelemetry**, Datadog style: the node's agent collects logs (stdout) and infra metrics with nothing in the service; `internal/telemetry` (first in `ioc`) adds traces and app metrics (`OTEL_TRACES_ENABLED`, `OTEL_METRICS_ENABLED`) by installing the global tracer and meter providers, which every instrumentation reads by default, so no constructor takes a provider (`router`: otelconnect in `router.HandlerOptions`; `db`: otelpgx; `cache`: redisotel; `events`: kotel).
 
 ## Conventions (keep them)
 
@@ -25,3 +25,4 @@ uber **fx**: each package owns `var Module = fx.Module(...)` and its constructor
 5. **After commit, best effort:** events (`events.Publisher`) and cache writes never fail a request; failures are logged.
 6. **Migrations run at boot**, before anything is served; a migration must be safe while older replicas still serve (expand, then contract).
 7. **The chart never creates secrets.**
+8. **Observability, Datadog style.** Logs: JSON on stdout only, collected by the node's agent (no setting); log with a context where one is at hand so lines carry `trace_id`. Traces and app metrics: opt-in (`OTEL_TRACES_ENABLED`, `OTEL_METRICS_ENABLED`), never fail the boot. A new client instruments itself with its OpenTelemetry library's defaults (the globals); tests record spans with `telemetrytest.Record(t)`.

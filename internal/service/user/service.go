@@ -69,7 +69,7 @@ func (s *Service) Get(ctx context.Context, id string) (User, error) {
 	if err := s.cache.Get(ctx, cacheKey(id), &u); err == nil {
 		return u, nil
 	} else if !errors.Is(err, cache.ErrMiss) {
-		s.log.Warn("cache read failed", "err", err) // degrade to the database
+		s.log.WarnContext(ctx, "cache read failed", "err", err) // degrade to the database
 	}
 	u, err := s.users.Get(ctx, id)
 	if errors.Is(err, apperror.ErrNotFound) {
@@ -79,7 +79,7 @@ func (s *Service) Get(ctx context.Context, id string) (User, error) {
 		return User{}, err
 	}
 	if err := s.cache.Set(ctx, cacheKey(id), u, cacheTTL); err != nil {
-		s.log.Warn("cache write failed", "err", err)
+		s.log.WarnContext(ctx, "cache write failed", "err", err)
 	}
 	return u, nil
 }

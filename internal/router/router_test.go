@@ -52,9 +52,11 @@ func (f *fakeUsers) List(context.Context) ([]usersvc.User, error) {
 func newServer(t *testing.T) (http.Handler, string, *http.Client) {
 	t.Helper()
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	opts, err := router.NewHandlerOptions(log)
+	require.NoError(t, err)
 	r, err := router.New(router.Params{Log: log, Services: []router.Service{
-		router.Mount(basev1connect.NewUserServiceHandler, basev1connect.UserServiceHandler(userhandler.New(&fakeUsers{byID: map[string]usersvc.User{}})), log),
-		router.Mount(basev1connect.NewHealthServiceHandler, basev1connect.HealthServiceHandler(healthhandler.New(health.New(nil), log)), log),
+		router.Mount(basev1connect.NewUserServiceHandler, basev1connect.UserServiceHandler(userhandler.New(&fakeUsers{byID: map[string]usersvc.User{}})), opts),
+		router.Mount(basev1connect.NewHealthServiceHandler, basev1connect.HealthServiceHandler(healthhandler.New(health.New(nil), log)), opts),
 	}})
 	require.NoError(t, err)
 	srv := httptest.NewUnstartedServer(r.Handler())
