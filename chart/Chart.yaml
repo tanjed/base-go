@@ -1,0 +1,6 @@
+apiVersion: v2
+name: base
+description: A Go service from ticket-base-go (Connect + Vanguard). Bundles its own Postgres.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

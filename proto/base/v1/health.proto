@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package base.v1;
+
+import "google/api/annotations.proto";
+
+option go_package = "github.com/tanjed/base-go/api/gen/base/v1;basev1";
+
+// HealthService is the kubelet's probes.
+service HealthService {
+  // Liveness: the process answers. Checks no dependency, so a database outage never restarts pods.
+  rpc Live(LiveRequest) returns (LiveResponse) {
+    option (google.api.http) = {get: "/live"};
+  }
+  // Readiness: every dependency checked live. UNAVAILABLE (REST: 503) when any is down, so the
+  // pod leaves rotation; the message names the failed components, never their errors (logged).
+  rpc Ready(ReadyRequest) returns (ReadyResponse) {
+    option (google.api.http) = {get: "/ready"};
+  }
+}
+
+message LiveRequest {}
+
+message LiveResponse {}
+
+message ReadyRequest {}
+
+message ReadyResponse {
+  // The components checked, all healthy (e.g. "db").
+  repeated string components = 1;
+}

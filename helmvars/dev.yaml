@@ -1,0 +1,3 @@
+image: { repository: registry.dev.example/base, tag: "0.1.0" }   # PLACEHOLDER: the image built from this repo
+kafka:
+  brokers: ""                                                    # PLACEHOLDER: this environment's Kafka, or empty

@@ -1,0 +1,24 @@
+image: { repository: "", tag: "" }   # no default: set them in helmvars/
+replicas: 2
+
+# Names of pre-created Secrets. This chart never creates secrets.
+secrets:
+  # keys: password, url (postgres://base:<password>@<release>-postgres:5432/base?sslmode=disable),
+  # read_url (optional: a read replica; without it, reads use url)
+  postgres: { name: base-postgres }
+  # key: url (redis://[:<password>@]<host>:6379/0)
+  redis: { name: base-redis }
+
+# Domain events go to this topic. Kafka is not part of this chart.
+kafka:
+  brokers: ""   # host:port[,host:port]; empty: events are only logged
+  topic: base.events
+
+resources: {}
+
+postgres:
+  image: postgres:16-alpine
+  storageSize: 2Gi
+  database: base
+  username: base
+  resources: {}

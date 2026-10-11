@@ -1,0 +1,42 @@
+# Local stack: the service with its own Postgres and Redis. Kafka is optional: set
+# APP_KAFKA_BROKERS to publish events, otherwise they are only logged.
+#   docker compose up -d --build
+# Port on loopback only: 8080 (Connect, gRPC, gRPC-Web and REST).
+name: base
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: base
+      POSTGRES_PASSWORD: base
+      POSTGRES_DB: base
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports: ["127.0.0.1:5432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U base -d base"]
+      interval: 2s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    ports: ["127.0.0.1:6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      retries: 30
+
+  app:
+    build: .
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    environment:
+      APP_NAME: base
+      APP_DATABASE_URL: postgres://base:base@postgres:5432/base?sslmode=disable
+      APP_REDIS_URL: redis://redis:6379/0
+    ports: ["127.0.0.1:8080:8080"]
+
+volumes:
+  pgdata:

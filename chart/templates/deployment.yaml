@@ -1,0 +1,48 @@
+# The service applies its migrations on start (under a Postgres advisory lock, so replicas
+# starting together are safe), then serves.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Chart.Name }}
+  labels: {{- include "app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: server
+spec:
+  replicas: {{ .Values.replicas }}
+  selector:
+    matchLabels: {{- include "app.selector" . | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "app.selector" . | nindent 8 }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ required "image.repository is required (see helmvars/)" .Values.image.repository }}:{{ required "image.tag is required (see helmvars/)" .Values.image.tag }}"
+          ports:
+            - { name: http, containerPort: 8080 }
+          env:
+            - { name: APP_NAME, value: {{ .Chart.Name | quote }} }
+            - name: APP_DATABASE_URL
+              valueFrom: { secretKeyRef: { name: {{ .Values.secrets.postgres.name }}, key: url } }
+            # Optional read replica; without the key, reads use the primary.
+            - name: APP_DATABASE_READ_URL
+              valueFrom: { secretKeyRef: { name: {{ .Values.secrets.postgres.name }}, key: read_url, optional: true } }
+            - name: APP_REDIS_URL
+              valueFrom: { secretKeyRef: { name: {{ .Values.secrets.redis.name }}, key: url } }
+            - { name: APP_KAFKA_BROKERS, value: {{ .Values.kafka.brokers | quote }} }
+            - { name: APP_KAFKA_TOPIC, value: {{ .Values.kafka.topic | quote }} }
+          # HealthService: liveness checks no dependency (a database outage never restarts pods),
+          # readiness checks them all.
+          readinessProbe: { httpGet: { path: /ready, port: http } }
+          livenessProbe: { httpGet: { path: /live, port: http }, initialDelaySeconds: 10 }
+          resources: {{- toYaml .Values.resources | nindent 12 }}
+---
+# Connect, gRPC, gRPC-Web and REST (HTTP/1.1 and h2c) on one port.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Chart.Name }}
+  labels: {{- include "app.labels" . | nindent 4 }}
+spec:
+  selector: {{- include "app.selector" . | nindent 4 }}
+  ports:
+    - { name: http, port: 8080, targetPort: http, appProtocol: kubernetes.io/h2c }
